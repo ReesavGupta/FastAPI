@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; }
+        h1 { color: #333; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 0.5rem 0; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; }
+        .completed { text-decoration: line-through; color: #888; }
+        button { margin-left: 0.5rem; }
+        form { margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <h1>Task Management</h1>
+    <form id="task-form">
+        <input type="text" id="task-title" placeholder="New task title" required />
+        <button type="submit">Add Task</button>
+    </form>
+    <ul id="task-list"></ul>
+    <script>
+        const API_URL = '/tasks';
+        let nextId = 1;
+
+        async function fetchTasks() {
+            const res = await fetch(API_URL);
+            const tasks = await res.json();
+            renderTasks(tasks);
+            // Set nextId to max existing id + 1
+            nextId = tasks.length ? Math.max(...tasks.map(t => t.id)) + 1 : 1;
+        }
+
+        function renderTasks(tasks) {
+            const list = document.getElementById('task-list');
+            list.innerHTML = '';
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = task.completed ? 'completed' : '';
+                li.innerHTML = `
+                    <span class="${task.completed ? 'completed' : ''}">${task.title}</span>
+                    <span>
+                        <button onclick="toggleComplete(${task.id}, ${task.completed})">${task.completed ? 'Mark Incomplete' : 'Mark Complete'}</button>
+                        <button onclick="deleteTask(${task.id})">Delete</button>
+                    </span>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        document.getElementById('task-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('task-title').value.trim();
+            if (!title) return;
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: nextId, title, completed: false })
+            });
+            document.getElementById('task-title').value = '';
+            fetchTasks();
+        };
+
+        window.toggleComplete = async (id, completed) => {
+            // Fetch the task to get its title
+            const res = await fetch(API_URL);
+            const tasks = await res.json();
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, title: task.title, completed: !completed })
+            });
+            fetchTasks();
+        };
+
+        window.deleteTask = async (id) => {
+            await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            fetchTasks();
+        };
+
+        fetchTasks();
+    </script>
+</body>
+</html> 

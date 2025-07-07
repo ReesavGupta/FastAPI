@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f9f9f9; }
+        h1 { color: #333; }
+        form, .summary, .filters { margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; background: #fff; }
+        th, td { padding: 0.5rem 1rem; border: 1px solid #ddd; text-align: left; }
+        th { background: #f0f0f0; }
+        tr:nth-child(even) { background: #f7f7f7; }
+        .delete-btn { color: #fff; background: #e74c3c; border: none; padding: 0.3rem 0.7rem; cursor: pointer; border-radius: 3px; }
+        .delete-btn:hover { background: #c0392b; }
+        .category { font-weight: bold; }
+        .summary { background: #e3f2fd; padding: 1rem; border-radius: 5px; }
+        .filters { display: flex; gap: 1rem; align-items: center; }
+        .filters label { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Expense Tracker</h1>
+    <form id="expense-form">
+        <input type="number" id="amount" placeholder="Amount" min="0.01" step="0.01" required>
+        <select id="category" required></select>
+        <input type="text" id="description" placeholder="Description">
+        <input type="date" id="date">
+        <button type="submit">Add Expense</button>
+    </form>
+    <div class="filters">
+        <label for="filter-category">Category:</label>
+        <select id="filter-category">
+            <option value="">All</option>
+        </select>
+        <label for="start-date">From:</label>
+        <input type="date" id="start-date">
+        <label for="end-date">To:</label>
+        <input type="date" id="end-date">
+        <button id="filter-btn">Filter</button>
+        <button id="clear-filter-btn" type="button">Clear</button>
+    </div>
+    <div class="summary">
+        <div><strong>Total:</strong> <span id="total"></span></div>
+        <div id="breakdown"></div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="expenses-table"></tbody>
+    </table>
+    <script>
+        const API = "../";
+        const CATEGORIES = ["Food", "Transport", "Utilities", "Entertainment", "Other"];
+        const categorySelect = document.getElementById('category');
+        const filterCategory = document.getElementById('filter-category');
+        CATEGORIES.forEach(cat => {
+            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            filterCategory.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+
+        async function fetchExpenses(params = {}) {
+            let url = API + 'expenses';
+            const query = new URLSearchParams(params).toString();
+            if (query) url += '?' + query;
+            const res = await fetch(url);
+            return res.json();
+        }
+        async function fetchTotal() {
+            const res = await fetch(API + 'expenses/total');
+            return res.json();
+        }
+        async function addExpense(data) {
+            const res = await fetch(API + 'expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error('Failed to add expense');
+            return res.json();
+        }
+        async function deleteExpense(id) {
+            await fetch(API + 'expenses/' + id, { method: 'DELETE' });
+        }
+        function formatCurrency(amount) {
+            return '₹' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        }
+        function formatDate(d) {
+            return new Date(d).toLocaleDateString('en-GB');
+        }
+        async function renderExpenses() {
+            const params = {};
+            if (filterCategory.value) params.category = filterCategory.value;
+            if (startDate.value) params.start_date = startDate.value;
+            if (endDate.value) params.end_date = endDate.value;
+            let expenses = await fetchExpenses(params);
+            if (filterCategory.value) {
+                expenses = expenses.filter(e => e.category === filterCategory.value);
+            }
+            expensesTable.innerHTML = '';
+            expenses.forEach(exp => {
+                expensesTable.innerHTML += `
+                    <tr>
+                        <td>${formatDate(exp.date)}</td>
+                        <td>${formatCurrency(exp.amount)}</td>
+                        <td class="category">${exp.category}</td>
+                        <td>${exp.description || ''}</td>
+                        <td><button class="delete-btn" onclick="deleteAndRefresh(${exp.id})">Delete</button></td>
+                    </tr>
+                `;
+            });
+        }
+        async function renderTotal() {
+            const total = await fetchTotal();
+            document.getElementById('total').textContent = formatCurrency(total.total);
+            let breakdownHtml = '';
+            for (const [cat, amt] of Object.entries(total.breakdown)) {
+                breakdownHtml += `<span>${cat}: <strong>${formatCurrency(amt)}</strong> </span> `;
+            }
+            document.getElementById('breakdown').innerHTML = breakdownHtml;
+        }
+        async function deleteAndRefresh(id) {
+            await deleteExpense(id);
+            await renderExpenses();
+            await renderTotal();
+        }
+        const expenseForm = document.getElementById('expense-form');
+        const expensesTable = document.getElementById('expenses-table');
+        const startDate = document.getElementById('start-date');
+        const endDate = document.getElementById('end-date');
+        expenseForm.onsubmit = async e => {
+            e.preventDefault();
+            const data = {
+                amount: parseFloat(document.getElementById('amount').value),
+                category: categorySelect.value,
+                description: document.getElementById('description').value,
+                date: document.getElementById('date').value || undefined
+            };
+            if (data.amount <= 0) {
+                alert('Amount must be positive!');
+                return;
+            }
+            try {
+                await addExpense(data);
+                expenseForm.reset();
+                await renderExpenses();
+                await renderTotal();
+            } catch {
+                alert('Failed to add expense. Check your input.');
+            }
+        };
+        document.getElementById('filter-btn').onclick = async e => {
+            e.preventDefault();
+            await renderExpenses();
+        };
+        document.getElementById('clear-filter-btn').onclick = async () => {
+            filterCategory.value = '';
+            startDate.value = '';
+            endDate.value = '';
+            await renderExpenses();
+        };
+        // Initial render
+        renderExpenses();
+        renderTotal();
+    </script>
+</body>
+</html> 
