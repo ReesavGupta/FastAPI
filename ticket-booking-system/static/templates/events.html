@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Events</h1>
+<form method="post" action="/events">
+    <label>Name: <input type="text" name="name" required></label><br>
+    <label>Description: <input type="text" name="description"></label><br>
+    <label>Date: <input type="datetime-local" name="date" required></label><br>
+    <label>Venue ID: <input type="number" name="venue_id" required></label><br>
+    <button type="submit">Add Event</button>
+</form>
+<hr>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th><th>Name</th><th>Description</th><th>Date</th><th>Venue ID</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in events %}
+        <tr>
+            <td>{{ event.id }}</td>
+            <td>{{ event.name }}</td>
+            <td>{{ event.description }}</td>
+            <td>{{ event.date }}</td>
+            <td>{{ event.venue_id }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 
