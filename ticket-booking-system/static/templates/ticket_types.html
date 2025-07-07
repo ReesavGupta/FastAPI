@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Ticket Types</h1>
+<form method="post" action="/ticket-types">
+    <label>Name: <input type="text" name="name" required></label><br>
+    <label>Price: <input type="number" step="0.01" name="price" required></label><br>
+    <label>Event ID: <input type="number" name="event_id" required></label><br>
+    <button type="submit">Add Ticket Type</button>
+</form>
+<hr>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th><th>Name</th><th>Price</th><th>Event ID</th><th>Booking Count</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in ticket_types %}
+        <tr>
+            <td>{{ t.id }}</td>
+            <td>{{ t.name }}</td>
+            <td>{{ t.price }}</td>
+            <td>{{ t.event_id }}</td>
+            <td>{{ t.booking_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 

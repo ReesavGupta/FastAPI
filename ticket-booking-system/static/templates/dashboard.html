@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="stats">
+    <div>Total Bookings: <b>{{ stats.total_bookings }}</b></div>
+    <div>Total Events: <b>{{ stats.total_events }}</b></div>
+    <div>Total Venues: <b>{{ stats.total_venues }}</b></div>
+    <div>Total Available Tickets: <b>{{ stats.total_available_tickets }}</b></div>
+</div>
+<hr>
+<h2>Event Revenues</h2>
+<table>
+    <thead><tr><th>Event</th><th>Revenue</th></tr></thead>
+    <tbody>
+        {% for r in event_revenues %}
+        <tr><td>{{ r.event_name }}</td><td>{{ r.revenue }}</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<h2>Venue Occupancy</h2>
+<table>
+    <thead><tr><th>Venue</th><th>Event</th><th>Booked</th><th>Capacity</th><th>Occupancy Rate</th></tr></thead>
+    <tbody>
+        {% for v in venue_occupancy %}
+            {% for occ in v.occupancy %}
+            <tr>
+                <td>{{ v.venue_name }}</td>
+                <td>{{ occ.event_name }}</td>
+                <td>{{ occ.booked }}</td>
+                <td>{{ occ.capacity }}</td>
+                <td>{{ (occ.occupancy_rate * 100) | round(1) }}%</td>
+            </tr>
+            {% endfor %}
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 

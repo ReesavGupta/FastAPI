@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Events Calendar</h1>
+{% for date, events_on_date in calendar.items() %}
+    <h2>{{ date }}</h2>
+    <ul>
+    {% for event in events_on_date %}
+        <li>
+            <b>{{ event.name }}</b> at {{ event.venue_name }}<br>
+            Available Tickets: {{ event.available_tickets }} / {{ event.venue_capacity }}
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No events scheduled.</p>
+{% endfor %}
+{% endblock %} 

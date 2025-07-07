@@ -11,6 +11,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 import os
+from collections import defaultdict
 
 DATABASE_URL = "sqlite:///./ticket_booking.db"
 
@@ -146,21 +147,27 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
 
 # VENUE ENDPOINTS
-@app.post("/venues", response_model=VenueOut)
-def create_venue(venue: VenueCreate, db: Session = Depends(get_db)):
-    db_venue = Venue(**venue.dict())
-    db.add(db_venue)
-    try:
-        db.commit()
-        db.refresh(db_venue)
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Venue with this name already exists.")
-    return db_venue
+@app.get("/venues", response_class=HTMLResponse)
+def venues_page(request: Request, db: Session = Depends(get_db)):
+    venues = db.query(Venue).all()
+    venues_out = []
+    for v in venues:
+        event_count = db.query(Event).filter(Event.venue_id == v.id).count()
+        venues_out.append({
+            "id": v.id,
+            "name": v.name,
+            "address": v.address,
+            "capacity": v.capacity,
+            "event_count": event_count
+        })
+    return templates.TemplateResponse("venues.html", {"request": request, "venues": venues_out})
 
-@app.get("/venues", response_model=List[VenueOut])
-def get_venues(db: Session = Depends(get_db)):
-    return db.query(Venue).all()
+@app.post("/venues", response_class=HTMLResponse)
+def add_venue(request: Request, name: str = Form(...), address: str = Form(...), capacity: int = Form(...), db: Session = Depends(get_db)):
+    db_venue = Venue(name=name, address=address, capacity=capacity)
+    db.add(db_venue)
+    db.commit()
+    return RedirectResponse(url="/venues", status_code=303)
 
 @app.get("/venues/{venue_id}/events", response_model=List[EventOut])
 def get_events_at_venue(venue_id: int, db: Session = Depends(get_db)):
@@ -190,21 +197,27 @@ def get_bookings_for_event(event_id: int, db: Session = Depends(get_db)):
     return bookings
 
 # TICKET TYPE ENDPOINTS
-@app.post("/ticket-types", response_model=TicketTypeOut)
-def create_ticket_type(ticket_type: TicketTypeCreate, db: Session = Depends(get_db)):
-    # Check event exists
-    event = db.query(Event).filter(Event.id == ticket_type.event_id).first()
-    if event is None:
-        raise HTTPException(status_code=404, detail="Event not found.")
-    db_type = TicketType(**ticket_type.dict())
+@app.get("/ticket-types", response_class=HTMLResponse)
+def ticket_types_page(request: Request, db: Session = Depends(get_db)):
+    ticket_types = db.query(TicketType).all()
+    ticket_types_out = []
+    for t in ticket_types:
+        booking_count = db.query(Booking).filter(Booking.ticket_type_id == t.id).count()
+        ticket_types_out.append({
+            "id": t.id,
+            "name": t.name,
+            "price": t.price,
+            "event_id": t.event_id,
+            "booking_count": booking_count
+        })
+    return templates.TemplateResponse("ticket_types.html", {"request": request, "ticket_types": ticket_types_out})
+
+@app.post("/ticket-types", response_class=HTMLResponse)
+def add_ticket_type(request: Request, name: str = Form(...), price: float = Form(...), event_id: int = Form(...), db: Session = Depends(get_db)):
+    db_type = TicketType(name=name, price=price, event_id=event_id)
     db.add(db_type)
     db.commit()
-    db.refresh(db_type)
-    return db_type
-
-@app.get("/ticket-types", response_model=List[TicketTypeOut])
-def get_ticket_types(db: Session = Depends(get_db)):
-    return db.query(TicketType).all()
+    return RedirectResponse(url="/ticket-types", status_code=303)
 
 @app.get("/ticket-types/{type_id}/bookings", response_model=List[BookingOut])
 def get_bookings_for_ticket_type(type_id: int, db: Session = Depends(get_db)):
@@ -246,9 +259,45 @@ def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     db.refresh(db_booking)
     return db_booking
 
-@app.get("/bookings", response_model=List[BookingOut])
-def get_bookings(db: Session = Depends(get_db)):
-    return db.query(Booking).all()
+@app.get("/bookings", response_class=HTMLResponse)
+def bookings_page(request: Request, db: Session = Depends(get_db)):
+    bookings = db.query(Booking).all()
+    events = db.query(Event).all()
+    venues = db.query(Venue).all()
+    ticket_types = db.query(TicketType).all()
+    bookings_out = []
+    for b in bookings:
+        event = next((e for e in events if e.id == b.event_id), None)
+        venue = next((v for v in venues if v.id == b.venue_id), None)
+        ticket_type = next((t for t in ticket_types if t.id == b.ticket_type_id), None)
+        bookings_out.append({
+            "id": b.id,
+            "event_name": event.name if event else b.event_id,
+            "venue_name": venue.name if venue else b.venue_id,
+            "ticket_type_name": ticket_type.name if ticket_type else b.ticket_type_id,
+            "quantity": b.quantity,
+            "status": b.status,
+            "confirmation_code": b.confirmation_code,
+            "created_at": b.created_at.strftime("%Y-%m-%d %H:%M")
+        })
+    return templates.TemplateResponse("bookings.html", {
+        "request": request,
+        "bookings": bookings_out,
+        "events": events,
+        "venues": venues,
+        "ticket_types": ticket_types
+    })
+
+@app.post("/bookings", response_class=HTMLResponse)
+def add_booking(request: Request, event_id: int = Form(...), venue_id: int = Form(...), ticket_type_id: int = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
+    from datetime import datetime
+    from random import choices
+    import string
+    confirmation_code = ''.join(choices(string.ascii_uppercase + string.digits, k=8))
+    db_booking = Booking(event_id=event_id, venue_id=venue_id, ticket_type_id=ticket_type_id, quantity=quantity, status=BookingStatus.confirmed, confirmation_code=confirmation_code, created_at=datetime.now())
+    db.add(db_booking)
+    db.commit()
+    return RedirectResponse(url="/bookings", status_code=303)
 
 @app.put("/bookings/{booking_id}", response_model=BookingOut)
 def update_booking(booking_id: int, booking: BookingCreate, db: Session = Depends(get_db)):
@@ -307,21 +356,45 @@ def get_available_tickets(event_id: int, db: Session = Depends(get_db)):
     available = venue.capacity - total_booked
     return {"event_id": event_id, "available_tickets": available, "venue_capacity": venue.capacity}
 
-@app.get("/bookings/search", response_model=List[BookingOut])
-def search_bookings(
-    event: Optional[str] = Query(None),
-    venue: Optional[str] = Query(None),
-    ticket_type: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
-):
+@app.get("/bookings/search", response_class=HTMLResponse)
+def bookings_search_page(request: Request, event: str = "", venue: str = "", ticket_type: str = "", db: Session = Depends(get_db)):
+    events = db.query(Event).all()
+    venues = db.query(Venue).all()
+    ticket_types = db.query(TicketType).all()
+    # Filter bookings using the API logic
     query = db.query(Booking)
     if event:
-        query = query.join(Event).filter(Event.name.ilike(f"%{event}%"))
+        query = query.join(Event).filter(Event.name == event)
     if venue:
-        query = query.join(Venue, Booking.venue_id == Venue.id).filter(Venue.name.ilike(f"%{venue}%"))
+        query = query.join(Venue, Booking.venue_id == Venue.id).filter(Venue.name == venue)
     if ticket_type:
-        query = query.join(TicketType).filter(TicketType.name.ilike(f"%{ticket_type}%"))
-    return query.all()
+        query = query.join(TicketType).filter(TicketType.name == ticket_type)
+    bookings = query.all()
+    bookings_out = []
+    for b in bookings:
+        event_obj = next((e for e in events if e.id == b.event_id), None)
+        venue_obj = next((v for v in venues if v.id == b.venue_id), None)
+        ticket_type_obj = next((t for t in ticket_types if t.id == b.ticket_type_id), None)
+        bookings_out.append({
+            "id": b.id,
+            "event_name": event_obj.name if event_obj else b.event_id,
+            "venue_name": venue_obj.name if venue_obj else b.venue_id,
+            "ticket_type_name": ticket_type_obj.name if ticket_type_obj else b.ticket_type_id,
+            "quantity": b.quantity,
+            "status": b.status,
+            "confirmation_code": b.confirmation_code,
+            "created_at": b.created_at.strftime("%Y-%m-%d %H:%M")
+        })
+    return templates.TemplateResponse("bookings_search.html", {
+        "request": request,
+        "bookings": bookings_out,
+        "events": events,
+        "venues": venues,
+        "ticket_types": ticket_types,
+        "selected_event": event,
+        "selected_venue": venue,
+        "selected_ticket_type": ticket_type
+    })
 
 @app.get("/booking-system/stats")
 def booking_system_stats(db: Session = Depends(get_db)):
@@ -378,5 +451,67 @@ def venue_occupancy(venue_id: int, db: Session = Depends(get_db)):
     return {"venue_id": venue_id, "venue_name": venue.name, "occupancy": occupancy}
 
 @app.get("/", response_class=HTMLResponse)
-def root(request):
-    return templates.TemplateResponse("base.html", {"request": request}) 
+def dashboard_page(request: Request, db: Session = Depends(get_db)):
+    # Stats
+    stats = booking_system_stats(db)
+    # Event revenues
+    events = db.query(Event).all()
+    event_revenues = []
+    for event in events:
+        revenue = db.query(func.sum(Booking.quantity * TicketType.price)).join(TicketType, Booking.ticket_type_id == TicketType.id).filter(Booking.event_id == event.id, Booking.status == BookingStatus.confirmed).scalar() or 0.0
+        event_revenues.append({"event_name": event.name, "revenue": revenue})
+    # Venue occupancy
+    venues = db.query(Venue).all()
+    venue_occupancy = []
+    for venue in venues:
+        occ = venue_occupancy_api(venue.id, db)
+        venue_occupancy.append({"venue_name": venue.name, "occupancy": occ["occupancy"]})
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "stats": stats,
+        "event_revenues": event_revenues,
+        "venue_occupancy": venue_occupancy
+    })
+
+# Helper for venue occupancy (API logic reused for dashboard)
+def venue_occupancy_api(venue_id: int, db: Session):
+    venue = db.query(Venue).filter(Venue.id == venue_id).first()
+    if venue is None:
+        return {"occupancy": []}
+    events = db.query(Event).filter(Event.venue_id == venue_id).all()
+    occupancy = []
+    for event in events:
+        total_booked = db.query(func.sum(Booking.quantity)).filter(Booking.event_id == event.id, Booking.status == BookingStatus.confirmed).scalar()
+        total_booked = int(total_booked or 0)
+        venue_capacity = int(venue.capacity) if venue.capacity is not None else 0
+        occupancy_rate = (total_booked / venue_capacity) if venue_capacity > 0 else 0
+        occupancy.append({
+            "event_id": event.id,
+            "event_name": event.name,
+            "booked": total_booked,
+            "capacity": venue_capacity,
+            "occupancy_rate": occupancy_rate
+        })
+    return {"occupancy": occupancy}
+
+@app.get("/calendar", response_class=HTMLResponse)
+def calendar_page(request: Request, db: Session = Depends(get_db)):
+    events = db.query(Event).all()
+    venues = {v.id: v for v in db.query(Venue).all()}
+    calendar = defaultdict(list)
+    for event in events:
+        date_str = event.date.strftime("%Y-%m-%d")
+        venue = venues.get(event.venue_id)
+        # Calculate available tickets
+        total_booked = db.query(func.sum(Booking.quantity)).filter(Booking.event_id == event.id, Booking.status == BookingStatus.confirmed).scalar() or 0
+        venue_capacity = venue.capacity if venue else 0
+        available_tickets = venue_capacity - total_booked
+        calendar[date_str].append({
+            "name": event.name,
+            "venue_name": venue.name if venue else event.venue_id,
+            "available_tickets": available_tickets,
+            "venue_capacity": venue_capacity
+        })
+    # Sort calendar by date
+    calendar = dict(sorted(calendar.items()))
+    return templates.TemplateResponse("calendar.html", {"request": request, "calendar": calendar}) 

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Bookings</h1>
+<form method="post" action="/bookings">
+    <label>Event:
+        <select name="event_id" required>
+            {% for event in events %}
+            <option value="{{ event.id }}">{{ event.name }}</option>
+            {% endfor %}
+        </select>
+    </label><br>
+    <label>Venue:
+        <select name="venue_id" required>
+            {% for venue in venues %}
+            <option value="{{ venue.id }}">{{ venue.name }}</option>
+            {% endfor %}
+        </select>
+    </label><br>
+    <label>Ticket Type:
+        <select name="ticket_type_id" required>
+            {% for t in ticket_types %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </label><br>
+    <label>Quantity: <input type="number" name="quantity" min="1" required></label><br>
+    <button type="submit">Add Booking</button>
+</form>
+<hr>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th><th>Event</th><th>Venue</th><th>Ticket Type</th><th>Quantity</th><th>Status</th><th>Confirmation</th><th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for b in bookings %}
+        <tr>
+            <td>{{ b.id }}</td>
+            <td>{{ b.event_name }}</td>
+            <td>{{ b.venue_name }}</td>
+            <td>{{ b.ticket_type_name }}</td>
+            <td>{{ b.quantity }}</td>
+            <td>{{ b.status }}</td>
+            <td>{{ b.confirmation_code }}</td>
+            <td>{{ b.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %} 
