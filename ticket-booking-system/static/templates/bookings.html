@@ -1,36 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Bookings</h1>
-<form method="post" action="/bookings">
+<h1 style="margin-bottom:1.5rem; color:#343a40;">Bookings</h1>
+<div class="main-container">
+<form method="post" action="/bookings" style="margin-bottom:2rem;">
     <label>Event:
         <select name="event_id" required>
             {% for event in events %}
             <option value="{{ event.id }}">{{ event.name }}</option>
             {% endfor %}
         </select>
-    </label><br>
+    </label>
     <label>Venue:
         <select name="venue_id" required>
             {% for venue in venues %}
             <option value="{{ venue.id }}">{{ venue.name }}</option>
             {% endfor %}
         </select>
-    </label><br>
+    </label>
     <label>Ticket Type:
         <select name="ticket_type_id" required>
             {% for t in ticket_types %}
             <option value="{{ t.id }}">{{ t.name }}</option>
             {% endfor %}
         </select>
-    </label><br>
-    <label>Quantity: <input type="number" name="quantity" min="1" required></label><br>
+    </label>
+    <label>Quantity: <input type="number" name="quantity" min="1" required></label>
     <button type="submit">Add Booking</button>
 </form>
 <hr>
+<div class="table-responsive">
 <table>
     <thead>
         <tr>
-            <th>ID</th><th>Event</th><th>Venue</th><th>Ticket Type</th><th>Quantity</th><th>Status</th><th>Confirmation</th><th>Created</th>
+            <th>ID</th><th>Event</th><th>Venue</th><th>Ticket Type</th><th>Quantity</th><th>Status</th><th>Confirmation</th><th>Created</th><th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -44,8 +46,24 @@
             <td>{{ b.status }}</td>
             <td>{{ b.confirmation_code }}</td>
             <td>{{ b.created_at }}</td>
+            <td style="white-space:nowrap;">
+                <form method="post" action="/bookings/{{ b.id }}/delete" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+                <a href="/bookings/{{ b.id }}/edit" class="button-link">Edit</a>
+                <form method="post" action="/bookings/{{ b.id }}/status" style="display:inline;">
+                    <select name="status">
+                        <option value="confirmed" {% if b.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                        <option value="cancelled" {% if b.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        <option value="pending" {% if b.status == 'pending' %}selected{% endif %}>Pending</option>
+                    </select>
+                    <button type="submit">Update Status</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+</div>
+</div>
 {% endblock %} 

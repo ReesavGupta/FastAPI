@@ -25,4 +25,93 @@ nav ul li a:hover {
 }
 main {
     padding: 2rem;
+}
+
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 2rem;
+}
+
+main, .main-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+th, td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e9ecef;
+    text-align: left;
+}
+th {
+    background: #343a40;
+    color: #fff;
+}
+tr:nth-child(even) {
+    background: #f2f2f2;
+}
+tr:hover {
+    background: #e9ecef;
+}
+
+form {
+    margin-bottom: 1.5rem;
+    background: #fff;
+    padding: 1rem;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    display: inline-block;
+}
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+input[type="number"], select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 250px;
+}
+button {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    transition: background 0.2s;
+}
+button:hover {
+    background: #0056b3;
+}
+a.button-link {
+    background: #28a745;
+    color: #fff !important;
+    padding: 0.5rem 1.2rem;
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    transition: background 0.2s;
+}
+a.button-link:hover {
+    background: #218838;
+}
+hr {
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid #dee2e6;
 } 

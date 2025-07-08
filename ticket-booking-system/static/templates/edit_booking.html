@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 style="margin-bottom:1.5rem; color:#343a40;">Edit Booking #{{ booking.id }}</h1>
+<div style="max-width:500px; margin:0 auto;">
+<form method="post" action="/bookings/{{ booking.id }}/edit">
+    <label>Event:
+        <select name="event_id" required>
+            {% for event in events %}
+            <option value="{{ event.id }}" {% if event.id == booking.event_id %}selected{% endif %}>{{ event.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Venue:
+        <select name="venue_id" required>
+            {% for venue in venues %}
+            <option value="{{ venue.id }}" {% if venue.id == booking.venue_id %}selected{% endif %}>{{ venue.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Ticket Type:
+        <select name="ticket_type_id" required>
+            {% for t in ticket_types %}
+            <option value="{{ t.id }}" {% if t.id == booking.ticket_type_id %}selected{% endif %}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>Quantity: <input type="number" name="quantity" min="1" value="{{ booking.quantity }}" required></label>
+    <button type="submit">Save Changes</button>
+    <a href="/bookings" class="button-link">Cancel</a>
+</form>
+</div>
+{% endblock %} 

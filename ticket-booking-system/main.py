@@ -229,6 +229,18 @@ def get_bookings_for_ticket_type(type_id: int, db: Session = Depends(get_db)):
 def generate_confirmation_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
+# Move this endpoint up
+@app.post("/bookings", response_class=HTMLResponse)
+def add_booking(request: Request, event_id: int = Form(...), venue_id: int = Form(...), ticket_type_id: int = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
+    from datetime import datetime
+    from random import choices
+    import string
+    confirmation_code = ''.join(choices(string.ascii_uppercase + string.digits, k=8))
+    db_booking = Booking(event_id=event_id, venue_id=venue_id, ticket_type_id=ticket_type_id, quantity=quantity, status=BookingStatus.confirmed, confirmation_code=confirmation_code, created_at=datetime.now())
+    db.add(db_booking)
+    db.commit()
+    return RedirectResponse(url="/bookings", status_code=303)
+
 @app.post("/bookings", response_model=BookingOut)
 def create_booking(booking: BookingCreate, db: Session = Depends(get_db)):
     # Validate event, venue, ticket type
@@ -288,17 +300,6 @@ def bookings_page(request: Request, db: Session = Depends(get_db)):
         "ticket_types": ticket_types
     })
 
-@app.post("/bookings", response_class=HTMLResponse)
-def add_booking(request: Request, event_id: int = Form(...), venue_id: int = Form(...), ticket_type_id: int = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
-    from datetime import datetime
-    from random import choices
-    import string
-    confirmation_code = ''.join(choices(string.ascii_uppercase + string.digits, k=8))
-    db_booking = Booking(event_id=event_id, venue_id=venue_id, ticket_type_id=ticket_type_id, quantity=quantity, status=BookingStatus.confirmed, confirmation_code=confirmation_code, created_at=datetime.now())
-    db.add(db_booking)
-    db.commit()
-    return RedirectResponse(url="/bookings", status_code=303)
-
 @app.put("/bookings/{booking_id}", response_model=BookingOut)
 def update_booking(booking_id: int, booking: BookingCreate, db: Session = Depends(get_db)):
     db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
@@ -341,6 +342,50 @@ def update_booking_status(booking_id: int, status: BookingStatus, db: Session = 
     db.commit()
     db.refresh(db_booking)
     return db_booking
+
+# HTML-friendly delete endpoint
+@app.post("/bookings/{booking_id}/delete")
+def delete_booking_html(booking_id: int, db: Session = Depends(get_db)):
+    db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if db_booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    db.delete(db_booking)
+    db.commit()
+    return RedirectResponse(url="/bookings", status_code=303)
+
+# HTML-friendly patch status endpoint
+@app.post("/bookings/{booking_id}/status")
+def update_booking_status_html(booking_id: int, status: BookingStatus = Form(...), db: Session = Depends(get_db)):
+    db_booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if db_booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    setattr(db_booking, 'status', status.value)
+    db.commit()
+    return RedirectResponse(url="/bookings", status_code=303)
+
+# Render edit form for a booking
+@app.get("/bookings/{booking_id}/edit", response_class=HTMLResponse)
+def edit_booking_page(request: Request, booking_id: int, db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if booking is None:
+        return HTMLResponse("Booking not found", status_code=404)
+    events = db.query(Event).all()
+    venues = db.query(Venue).all()
+    ticket_types = db.query(TicketType).all()
+    return templates.TemplateResponse("edit_booking.html", {"request": request, "booking": booking, "events": events, "venues": venues, "ticket_types": ticket_types})
+
+# Handle edit form submission
+@app.post("/bookings/{booking_id}/edit")
+def edit_booking_submit(request: Request, booking_id: int, event_id: int = Form(...), venue_id: int = Form(...), ticket_type_id: int = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if booking is None:
+        return HTMLResponse("Booking not found", status_code=404)
+    setattr(booking, 'event_id', event_id)
+    setattr(booking, 'venue_id', venue_id)
+    setattr(booking, 'ticket_type_id', ticket_type_id)
+    setattr(booking, 'quantity', quantity)
+    db.commit()
+    return RedirectResponse(url="/bookings", status_code=303)
 
 # AVAILABLE TICKETS FOR EVENT
 @app.get("/events/{event_id}/available-tickets")
