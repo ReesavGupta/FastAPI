@@ -5,6 +5,9 @@ from datetime import date as dt_date, datetime
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field, validator
 import random
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 
 DATABASE_URL = "sqlite:///./expenses.db"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -78,13 +81,18 @@ def init_db():
 
 app = FastAPI()
 
+# Mount the static directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.on_event("startup")
 def on_startup():
     init_db()
 
-@app.get("/", tags=["Root"])
+# Serve index.html at the root
+@app.get("/", response_class=FileResponse)
 def read_root():
-    return {"message": "Expense Tracker API"}
+    index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    return FileResponse(index_path, media_type="text/html")
 
 @app.get("/expenses", response_model=List[ExpenseOut])
 def get_expenses(
