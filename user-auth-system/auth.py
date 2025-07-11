@@ -5,6 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import models, database
+from .utils import is_token_blacklisted
 
 # Hash a password for storing
 
@@ -45,6 +46,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if is_token_blacklisted(token):
+        raise credentials_exception
     payload = verify_access_token(token)
     if payload is None or "sub" not in payload:
         raise credentials_exception
