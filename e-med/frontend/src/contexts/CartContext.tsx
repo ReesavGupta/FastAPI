@@ -48,10 +48,13 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   }, [items]);
 
   const addToCart = (medicine: Medicine, quantity: number) => {
+    console.log('addToCart called with:', { medicine, quantity });
     setItems(prevItems => {
+      console.log('Previous items:', prevItems);
       const existingItem = prevItems.find(item => item.medicine_id === medicine.id);
       
       if (existingItem) {
+        console.log('Item already exists, updating quantity');
         // Update quantity if item already exists
         return prevItems.map(item =>
           item.medicine_id === medicine.id
@@ -59,6 +62,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
             : item
         );
       } else {
+        console.log('Adding new item to cart');
         // Add new item
         const newItem: CartItem = {
           id: Date.now(), // Temporary ID
@@ -69,6 +73,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           total_price: medicine.price * quantity,
           created_at: new Date().toISOString(),
         };
+        console.log('New item created:', newItem);
         return [...prevItems, newItem];
       }
     });

@@ -10,6 +10,8 @@ import MedicinesPage from './pages/MedicinesPage';
 import OrdersPage from './pages/OrdersPage';
 import PrescriptionsPage from './pages/PrescriptionsPage';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import './App.css';
 
@@ -42,6 +44,14 @@ function App() {
                     } 
                   />
                   <Route 
+                    path="/orders/:orderId" 
+                    element={
+                      <ProtectedRoute>
+                        <OrderDetailPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
                     path="/prescriptions" 
                     element={
                       <ProtectedRoute>
@@ -54,6 +64,14 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <CartPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/checkout" 
+                    element={
+                      <ProtectedRoute>
+                        <CheckoutPage />
                       </ProtectedRoute>
                     } 
                   />

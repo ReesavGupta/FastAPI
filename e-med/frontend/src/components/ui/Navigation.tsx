@@ -1,133 +1,143 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import type { CartItem } from '../../types';
 
 const Navigation: React.FC = () => {
-  const { user, logout } = useAuth();
-  const { getCartItemCount } = useCart();
+  const { isAuthenticated, user, logout } = useAuth();
+  const { items: cartItems } = useCart();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const cartItemCount = cartItems.reduce((total: number, item: CartItem) => total + item.quantity, 0);
+
+  // Helper to highlight active link
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+    <nav className="bg-white shadow border-b border-gray-100 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <div className="flex items-center">
-            <div className="flex-shrink-0 flex items-center">
-              <svg
-                className="h-8 w-8 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-                />
-              </svg>
-              <span className="ml-2 text-xl font-semibold text-gray-900">MediDash</span>
-            </div>
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <span className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                MediDash
+              </span>
+            </Link>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center space-x-8">
-              <Link
-                to="/dashboard"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+          {/* Navigation Links */}
+          {isAuthenticated && (
+            <div className="flex items-center space-x-1 md:space-x-3 lg:space-x-6">
+              <Link 
+                to="/medicines" 
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center
+                  ${isActive('/medicines') ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'}`}
               >
-                Dashboard
-              </Link>
-              <Link
-                to="/medicines"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
-              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
                 Medicines
               </Link>
-              <Link
-                to="/orders"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+              <Link 
+                to="/orders" 
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center
+                  ${isActive('/orders') ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'}`}
               >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
                 Orders
               </Link>
-              <Link
-                to="/prescriptions"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+              <Link 
+                to="/prescriptions" 
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center
+                  ${isActive('/prescriptions') ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'}`}
               >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V5m0 6v6m0 0h3m-3 0H9" />
+                </svg>
                 Prescriptions
               </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Cart Icon */}
-              <Link
-                to="/cart"
-                className="relative p-2 text-gray-700 hover:text-blue-600 transition-colors duration-200"
+              <Link 
+                to="/cart" 
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center relative
+                  ${isActive('/cart') ? 'bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 shadow' : 'text-gray-700 hover:bg-blue-50 hover:text-blue-600'}`}
               >
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m6 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
                 </svg>
-                {getCartItemCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {getCartItemCount()}
+                Cart
+                {cartItemCount > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center absolute -top-2 -right-2 shadow">
+                    {cartItemCount}
                   </span>
                 )}
               </Link>
+            </div>
+          )}
 
-              <div className="hidden md:block">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-sm font-medium text-blue-600">
-                        {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+          {/* Right side */}
+          <div className="flex items-center space-x-2 md:space-x-4">
+            {isAuthenticated ? (
+              <>
+                {/* User Menu */}
+                <div className="relative group">
+                  <button className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 transition-colors duration-200">
+                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-medium">
+                        {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                       </span>
                     </div>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-700">{user?.full_name}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
+                    <span className="hidden md:block text-sm font-medium">{user?.full_name || user?.email}</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
+                      <p className="font-medium">{user?.full_name}</p>
+                      <p className="text-gray-500">{user?.email}</p>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                    >
+                      Sign out
+                    </button>
                   </div>
                 </div>
+              </>
+            ) : (
+              <div className="flex items-center space-x-2 md:space-x-4">
+                <Link
+                  to="/login"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-md"
+                >
+                  Sign up
+                </Link>
               </div>
-
-              <button
-                onClick={logout}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-              >
-                Logout
-              </button>
-            </div>
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      <div className="md:hidden">
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-          <Link
-            to="/dashboard"
-            className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium"
-          >
-            Dashboard
-          </Link>
-          <Link
-            to="/medicines"
-            className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium"
-          >
-            Medicines
-          </Link>
-          <Link
-            to="/orders"
-            className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium"
-          >
-            Orders
-          </Link>
-          <Link
-            to="/prescriptions"
-            className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium"
-          >
-            Prescriptions
-          </Link>
         </div>
       </div>
     </nav>
