@@ -1,12 +1,71 @@
-function App() {
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
+import Navigation from './components/ui/Navigation';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import MedicinesPage from './pages/MedicinesPage';
+import OrdersPage from './pages/OrdersPage';
+import PrescriptionsPage from './pages/PrescriptionsPage';
+import CartPage from './pages/CartPage';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import './App.css';
 
+function App() {
   return (
-    <>
-      <div>
-        hello world
-      </div>
-    </>
-  )
+    <AuthProvider>
+      <CartProvider>
+        <WebSocketProvider>
+          <Router>
+            <div className="min-h-screen bg-gray-50">
+              <Navigation />
+              <main className="container mx-auto px-4 py-8">
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route 
+                    path="/medicines" 
+                    element={
+                      <ProtectedRoute>
+                        <MedicinesPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/orders" 
+                    element={
+                      <ProtectedRoute>
+                        <OrdersPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/prescriptions" 
+                    element={
+                      <ProtectedRoute>
+                        <PrescriptionsPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/cart" 
+                    element={
+                      <ProtectedRoute>
+                        <CartPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route path="/" element={<Navigate to="/medicines" replace />} />
+                </Routes>
+              </main>
+            </div>
+          </Router>
+        </WebSocketProvider>
+      </CartProvider>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
