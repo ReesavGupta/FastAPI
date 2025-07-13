@@ -140,6 +140,7 @@ export const orderAPI = {
     status?: string;
     order_type?: string;
     is_emergency?: boolean;
+    delivery_partner_id?: number;
     limit?: number;
     offset?: number;
   }): Promise<Order[]> => {
@@ -181,6 +182,12 @@ export const orderAPI = {
   // Track order
   trackOrder: async (orderId: number): Promise<Record<string, unknown>> => {
     const response: AxiosResponse<Record<string, unknown>> = await api.get(`/orders/${orderId}/track`);
+    return response.data;
+  },
+
+  // Assign delivery partner
+  assignDeliveryPartner: async (orderId: number, partnerId: number): Promise<any> => {
+    const response: AxiosResponse<any> = await api.patch(`/orders/${orderId}/assign-partner`, { partner_id: partnerId });
     return response.data;
   },
 };
@@ -257,6 +264,12 @@ export const userAPI = {
   // Update user profile
   updateProfile: async (userData: Partial<User>): Promise<User> => {
     const response: AxiosResponse<User> = await api.put('/users/me', userData);
+    return response.data;
+  },
+
+  // Get user by ID
+  getUserById: async (userId: number): Promise<User> => {
+    const response: AxiosResponse<User> = await api.get(`/users/${userId}`);
     return response.data;
   },
 };

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { orderAPI } from '../services/api';
-import type { Order, OrderStatus } from '../types';
+import type { Order, OrderStatus, User } from '../types';
 import { OrderStatus as OrderStatusEnum } from '../types';
+import { userAPI } from '../services/api';
 
 const AdminOrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -9,9 +10,14 @@ const AdminOrdersPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [deliveryPartners, setDeliveryPartners] = useState<User[]>([]);
+  const [selectedPartner, setSelectedPartner] = useState<{ [orderId: number]: number }>({});
+  const [assignLoadingId, setAssignLoadingId] = useState<number | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
+    fetchDeliveryPartners();
   }, []);
 
   const fetchOrders = async () => {
@@ -26,6 +32,15 @@ const AdminOrdersPage: React.FC = () => {
     }
   };
 
+  const fetchDeliveryPartners = async () => {
+    try {
+      const users = await userAPI.getUsers({ role: 'delivery_partner' });
+      setDeliveryPartners(Array.isArray(users) ? users : []);
+    } catch (err) {
+      setDeliveryPartners([]);
+    }
+  };
+
   const handleStatusUpdate = async (orderId: number, status: OrderStatus, notes?: string) => {
     setActionLoadingId(orderId);
     setActionError(null);
@@ -36,6 +51,20 @@ const AdminOrdersPage: React.FC = () => {
       setActionError(err instanceof Error ? err.message : 'Failed to update order status');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const handleAssignPartner = async (orderId: number) => {
+    if (!selectedPartner[orderId]) return;
+    setAssignLoadingId(orderId);
+    setAssignError(null);
+    try {
+      await orderAPI.assignDeliveryPartner(orderId, selectedPartner[orderId]);
+      await fetchOrders();
+    } catch (err: unknown) {
+      setAssignError(err instanceof Error ? err.message : 'Failed to assign delivery partner');
+    } finally {
+      setAssignLoadingId(null);
     }
   };
 
@@ -75,6 +104,7 @@ const AdminOrdersPage: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assign Partner</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -133,11 +163,39 @@ const AdminOrdersPage: React.FC = () => {
                       </button>
                     )}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {(!order.delivery_partner_id && (order.status === OrderStatusEnum.PREPARING || order.status === OrderStatusEnum.CONFIRMED)) ? (
+                      <div className="flex items-center space-x-2">
+                        <select
+                          className="border rounded px-2 py-1"
+                          value={selectedPartner[order.id] || ''}
+                          onChange={e => setSelectedPartner(prev => ({ ...prev, [order.id]: Number(e.target.value) }))}
+                        >
+                          <option value="">Select Partner</option>
+                          {deliveryPartners.map(partner => (
+                            <option key={partner.id} value={partner.id}>{partner.full_name} ({partner.phone})</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignPartner(order.id)}
+                          disabled={assignLoadingId === order.id || !selectedPartner[order.id]}
+                          className="px-3 py-1 bg-indigo-500 text-white rounded hover:bg-indigo-600 disabled:opacity-50"
+                        >
+                          {assignLoadingId === order.id ? 'Assigning...' : 'Assign'}
+                        </button>
+                      </div>
+                    ) : order.delivery_partner_id ? (
+                      <span className="text-green-700 font-medium">Assigned</span>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
           {actionError && <div className="p-4 text-red-600 text-sm">{actionError}</div>}
+          {assignError && <div className="p-4 text-red-600 text-sm">{assignError}</div>}
         </div>
       </div>
     </div>

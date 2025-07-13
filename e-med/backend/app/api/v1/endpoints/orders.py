@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
@@ -421,3 +421,21 @@ async def upload_delivery_proof(
     except Exception as e:
         print(f"Failed to send delivery proof notification: {e}")
     return {"message": "Delivery proof uploaded and order marked as delivered", "proof_url": upload_result["url"]} 
+
+@router.patch("/{order_id}/assign-partner")
+async def assign_delivery_partner(
+    order_id: int,
+    partner_id: int = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_admin_user)
+):
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    partner = db.query(User).filter(User.id == partner_id, User.role == UserRole.DELIVERY_PARTNER).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Delivery partner not found")
+    order.delivery_partner_id = partner_id
+    db.commit()
+    db.refresh(order)
+    return {"message": "Delivery partner assigned", "order_id": order.id, "delivery_partner_id": partner_id} 

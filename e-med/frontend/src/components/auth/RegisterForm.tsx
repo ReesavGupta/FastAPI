@@ -14,11 +14,12 @@ const RegisterForm: React.FC = () => {
     address: '',
     emergency_contact: '',
     medical_info: '',
+    role: 'customer', // Add role to form state, default to customer
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -57,6 +58,7 @@ const RegisterForm: React.FC = () => {
         address: formData.address,
         emergency_contact: formData.emergency_contact,
         medical_info: formData.medical_info,
+        role: formData.role, // Pass role to register
         agreeToTerms: true,
       });
       navigate('/medicines');
@@ -91,6 +93,24 @@ const RegisterForm: React.FC = () => {
             placeholder="Enter your full name"
           />
         </div>
+      </div>
+      {/* User Type Dropdown */}
+      <div>
+        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+          Account Type
+        </label>
+        <select
+          id="role"
+          name="role"
+          value={formData.role}
+          onChange={handleChange}
+          className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"
+          required
+        >
+          <option value="customer">Customer</option>
+          <option value="pharmacy_admin">Pharmacy Admin</option>
+          <option value="delivery_partner">Delivery Partner</option>
+        </select>
       </div>
 
       {/* Email */}

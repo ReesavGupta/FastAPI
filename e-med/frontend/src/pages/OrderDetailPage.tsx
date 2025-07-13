@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
-import { orderAPI } from '../services/api';
-import type { Order } from '../types';
+import { orderAPI, userAPI } from '../services/api';
+import type { Order, User } from '../types';
 import { OrderStatus } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocket } from '../contexts/WebSocketContext';
+import { MapContainer } from 'react-leaflet/MapContainer';
+import { TileLayer } from 'react-leaflet/TileLayer';
+import { Marker } from 'react-leaflet/Marker';
+import { Popup } from 'react-leaflet/Popup';
+import 'leaflet/dist/leaflet.css';
 
 const OrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -21,24 +26,29 @@ const OrderDetailPage: React.FC = () => {
   const [proofUploading, setProofUploading] = useState(false);
   const [proofError, setProofError] = useState<string | null>(null);
   const [proofSuccess, setProofSuccess] = useState<string | null>(null);
+  const [deliveryPartner, setDeliveryPartner] = useState<User | null>(null);
+  // Add delivery partner actions
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { user } = useAuth();
   const { lastMessage } = useWebSocket();
 
   // Get order data from navigation state or fetch from API
+  const fetchOrder = async () => {
+    if (!orderId) return;
+    try {
+      setLoading(true);
+      const orderData = await orderAPI.getOrder(parseInt(orderId));
+      setOrder(orderData);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load order details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchOrder = async () => {
-      if (!orderId) return;
-      try {
-        setLoading(true);
-        const orderData = await orderAPI.getOrder(parseInt(orderId));
-        setOrder(orderData);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load order details');
-      } finally {
-        setLoading(false);
-      }
-    };
     if (location.state?.orderId === orderId) {
       setOrder({
         id: location.state.orderId,
@@ -91,6 +101,22 @@ const OrderDetailPage: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessage]);
+  // Fetch delivery partner info when tracking changes
+  useEffect(() => {
+    const fetchDeliveryPartner = async () => {
+      if (tracking && tracking.delivery_partner_id) {
+        try {
+          const user = await userAPI.getUserById(Number(tracking.delivery_partner_id));
+          setDeliveryPartner(user);
+        } catch (err) {
+          setDeliveryPartner(null);
+        }
+      } else {
+        setDeliveryPartner(null);
+      }
+    };
+    fetchDeliveryPartner();
+  }, [tracking?.delivery_partner_id]);
   // Delivery proof upload handler
   const handleProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setProofFile(e.target.files[0]);
@@ -127,6 +153,36 @@ const OrderDetailPage: React.FC = () => {
       setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
       setCancelLoading(false);
+    }
+  };
+
+  const handleStartDelivery = async () => {
+    if (!order) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await orderAPI.updateOrderStatus(order.id, OrderStatus.OUT_FOR_DELIVERY);
+      await fetchOrder();
+      await fetchTracking();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Failed to start delivery');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkDelivered = async () => {
+    if (!order) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      await orderAPI.updateOrderStatus(order.id, OrderStatus.DELIVERED);
+      await fetchOrder();
+      await fetchTracking();
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Failed to mark as delivered');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -325,23 +381,89 @@ const OrderDetailPage: React.FC = () => {
                 </form>
               </div>
             )}
+            {/* Delivery Partner Actions */}
+            {user && user.role === 'delivery_partner' && order.delivery_partner_id === user.id && (
+              <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6 mt-6 flex flex-col gap-4">
+                <h2 className="text-lg font-semibold text-blue-700 mb-2">Delivery Actions</h2>
+                {actionError && <div className="text-red-600 text-sm">{actionError}</div>}
+                {order.status === OrderStatus.PREPARING && (
+                  <button
+                    onClick={handleStartDelivery}
+                    disabled={actionLoading}
+                    className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Starting...' : 'Start Delivery'}
+                  </button>
+                )}
+                {order.status === OrderStatus.OUT_FOR_DELIVERY && !order.delivery_proof_url && (
+                  <button
+                    onClick={handleMarkDelivered}
+                    disabled={actionLoading}
+                    className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Marking...' : 'Mark as Delivered'}
+                  </button>
+                )}
+                {/* Upload Proof is already shown below for delivery partners */}
+              </div>
+            )}
             {/* Order Tracking Section */}
             <div className="bg-white rounded-xl shadow-sm border border-purple-200 p-6 mt-6">
               <h2 className="text-lg font-semibold text-purple-700 mb-2">Order Tracking</h2>
               {trackingLoading ? (
                 <div>Loading tracking info...</div>
               ) : tracking ? (
-                <div className="space-y-2">
-                  <div>Status: <span className="font-semibold">{tracking.status.replace('_', ' ')}</span></div>
-                  <div>Created: {new Date(tracking.created_at).toLocaleString()}</div>
-                  {tracking.confirmed_at && <div>Confirmed: {new Date(tracking.confirmed_at).toLocaleString()}</div>}
-                  {tracking.preparing_at && <div>Preparing: {new Date(tracking.preparing_at).toLocaleString()}</div>}
-                  {tracking.out_for_delivery_at && <div>Out for Delivery: {new Date(tracking.out_for_delivery_at).toLocaleString()}</div>}
-                  {tracking.delivered_at && <div>Delivered: {new Date(tracking.delivered_at).toLocaleString()}</div>}
-                  {tracking.delivery_partner_id && <div>Delivery Partner ID: {tracking.delivery_partner_id}</div>}
-                  {tracking.delivery_proof_url && (
-                    <div>Proof: <a href={tracking.delivery_proof_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a></div>
+                <div className="space-y-4">
+                  {/* Delivery Partner Info */}
+                  {deliveryPartner && (
+                    <div className="flex items-center gap-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-purple-200 flex items-center justify-center text-xl font-bold text-white">
+                        {deliveryPartner.full_name ? deliveryPartner.full_name[0] : 'D'}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-purple-800">{deliveryPartner.full_name}</div>
+                        <div className="text-sm text-gray-600">Phone: {deliveryPartner.phone}</div>
+                        {deliveryPartner.vehicle_number && (
+                          <div className="text-sm text-gray-600">Vehicle: {deliveryPartner.vehicle_number}</div>
+                        )}
+                      </div>
+                    </div>
                   )}
+                  {/* Live Map */}
+                  {tracking.delivery_partner_location && typeof tracking.delivery_partner_location.lat === 'number' && typeof tracking.delivery_partner_location.lng === 'number' && (
+                    <div className="h-64 w-full rounded overflow-hidden mb-4">
+                      <MapContainer center={[Number(tracking.delivery_partner_location.lat), Number(tracking.delivery_partner_location.lng)]} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <Marker position={[Number(tracking.delivery_partner_location.lat), Number(tracking.delivery_partner_location.lng)]}>
+                          <Popup>Delivery Partner Location</Popup>
+                        </Marker>
+                      </MapContainer>
+                    </div>
+                  )}
+                  {/* Timeline */}
+                  <div className="flex flex-col md:flex-row md:items-center md:space-x-8 space-y-2 md:space-y-0">
+                    {['pending','confirmed','preparing','out_for_delivery','delivered'].map((status, idx) => (
+                      <div key={status} className="flex items-center">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs
+                          ${tracking.status === status ? 'bg-purple-600 text-white' : idx < ['pending','confirmed','preparing','out_for_delivery','delivered'].indexOf(tracking.status) ? 'bg-purple-300 text-white' : 'bg-gray-200 text-gray-400'}`}>{idx+1}</div>
+                        <span className="ml-2 capitalize text-xs md:text-sm">{status.replace('_',' ')}</span>
+                        {idx < 4 && <div className="w-8 h-1 bg-gray-200 mx-2 md:mx-4 rounded" />}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Tracking Info */}
+                  <div className="space-y-2">
+                    <div>Status: <span className="font-semibold">{tracking.status.replace('_', ' ')}</span></div>
+                    <div>Created: {new Date(tracking.created_at).toLocaleString()}</div>
+                    {tracking.confirmed_at && <div>Confirmed: {new Date(tracking.confirmed_at).toLocaleString()}</div>}
+                    {tracking.preparing_at && <div>Preparing: {new Date(tracking.preparing_at).toLocaleString()}</div>}
+                    {tracking.out_for_delivery_at && <div>Out for Delivery: {new Date(tracking.out_for_delivery_at).toLocaleString()}</div>}
+                    {tracking.delivered_at && <div>Delivered: {new Date(tracking.delivered_at).toLocaleString()}</div>}
+                    {tracking.delivery_partner_id && <div>Delivery Partner ID: {tracking.delivery_partner_id}</div>}
+                    {tracking.delivery_proof_url && (
+                      <div>Proof: <a href={tracking.delivery_proof_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a></div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div>No tracking info available.</div>

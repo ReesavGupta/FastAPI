@@ -169,19 +169,19 @@
 - [x] **WebSocket Client**
   - [x] Set up WebSocket connection
   - [x] Implement connection management
-  - [ ] Add real-time message handling
+  - [x] Add real-time message handling
   - [ ] Create connection status indicators
   - [ ] Add reconnection logic
 
-- [ ] **Live Tracking UI**
-  - [ ] Create real-time order tracking
+- [x] **Live Tracking UI**
+  - [x] Create real-time order tracking
   - [ ] Implement live map integration
-  - [ ] Add delivery status updates
+  - [x] Add delivery status updates
   - [ ] Create tracking timeline
   - [ ] Add location sharing
 
-- [ ] **Real-time Notifications**
-  - [ ] Implement push notifications
+- [x] **Real-time Notifications**
+  - [x] Implement push notifications
   - [ ] Create in-app notifications
   - [ ] Add notification preferences
   - [ ] Create notification history
@@ -195,8 +195,8 @@
   - [ ] Create delivery radius calculation
   - [ ] Implement route optimization
 
-- [ ] **Delivery Partner System**
-  - [ ] Create delivery partner models
+- [x] **Delivery Partner System**
+  - [x] Create delivery partner models
   - [ ] Implement partner registration
   - [ ] Add partner tracking
   - [ ] Create delivery assignment

@@ -12,6 +12,8 @@ export interface User {
   medical_info?: string;
   created_at: string;
   updated_at?: string;
+  vehicle_number?: string;
+  is_available?: boolean;
 }
 
 export enum UserRole {
@@ -245,6 +247,7 @@ export interface RegisterFormData {
   emergency_contact?: string;
   medical_info?: string;
   agreeToTerms: boolean;
+  role?: string;
 }
 
 // UI Types
