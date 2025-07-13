@@ -133,19 +133,19 @@ e-med/
 
 ### Phase 1: Foundation (MVP) - Weeks 1-4
 - [x] Project setup and documentation
-- [ ] Backend authentication system
-- [ ] Medicine catalog
-- [ ] Basic order management
+- [x] Backend authentication system
+- [x] Medicine catalog
+- [x] Basic order management
 - [x] Frontend setup and basic UI
 
 ### Phase 2: Prescription & Security - Weeks 5-8
-- [ ] Cloudinary integration
-- [ ] Prescription management
-- [ ] Enhanced security features
-- [ ] Role-based access control
+- [x] Cloudinary integration
+- [x] Prescription management
+- [x] Enhanced security features
+- [x] Role-based access control
 
 ### Phase 3: Real-time Features - Weeks 9-12
-- [ ] WebSocket implementation
+- [x] WebSocket implementation
 - [ ] Live order tracking
 - [ ] Push notifications
 - [ ] Delivery optimization

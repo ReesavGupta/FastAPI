@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { orderAPI } from '../services/api';
-import type { Order } from '../types';
 
 const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
@@ -69,8 +68,8 @@ const CheckoutPage: React.FC = () => {
           total: total
         }
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to place order. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -18,8 +18,8 @@ const OrdersPage: React.FC = () => {
         setLoading(true);
         const ordersData = await orderAPI.getOrders();
         setOrders(ordersData);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load orders');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load orders');
       } finally {
         setLoading(false);
       }
@@ -34,9 +34,9 @@ const OrdersPage: React.FC = () => {
     try {
       await orderAPI.cancelOrder(orderId);
       setOrders(prev => prev.map(order => order.id === orderId ? { ...order, status: OrderStatus.CANCELLED } : order));
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCancelErrorId(orderId);
-      setCancelErrorMsg(err.message || 'Failed to cancel order');
+      setCancelErrorMsg(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
       setCancelLoadingId(null);
     }

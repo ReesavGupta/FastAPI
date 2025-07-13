@@ -34,8 +34,8 @@ const LoginForm: React.FC = () => {
         rememberMe: false,
       });
       navigate('/medicines');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

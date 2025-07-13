@@ -118,6 +118,7 @@ export interface Order {
   created_at: string;
   updated_at?: string;
   items: OrderItem[];
+  delivery_proof_url?: string;
 }
 
 // Prescription Types

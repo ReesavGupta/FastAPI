@@ -40,6 +40,9 @@ class Order(Base):
     estimated_delivery_time = Column(DateTime(timezone=True), nullable=True)
     actual_delivery_time = Column(DateTime(timezone=True), nullable=True)
     
+    # Delivery proof
+    delivery_proof_url = Column(String, nullable=True)
+    
     # Emergency details
     is_emergency = Column(Boolean, default=False)
     emergency_reason = Column(String, nullable=True)

@@ -10,6 +10,7 @@ from app.schemas.prescription import (
     PrescriptionVerification, PrescriptionSearch
 )
 from app.services.cloudinary_service import cloudinary_service
+from app.services.notification_service import notification_service
 import uuid
 from datetime import datetime
 
@@ -164,14 +165,21 @@ async def verify_prescription(
         )
     
     # Update verification details
-    prescription.status = verification_data.status
+    prescription.status = PrescriptionStatus(verification_data.status)
     prescription.verification_notes = verification_data.verification_notes
     prescription.extracted_medicines = verification_data.extracted_medicines
-    prescription.verified_by = current_user.id
+    prescription.verified_by = int(current_user.id)
     prescription.verified_at = datetime.utcnow()
     
     db.commit()
     db.refresh(prescription)
+    # Send notification to user via WebSocket
+    await notification_service.send_prescription_verification_update(
+        user_id=int(prescription.user_id),
+        prescription_id=int(prescription.id),
+        status=prescription.status.value,
+        notes=prescription.verification_notes or ""
+    )
     return PrescriptionSchema.model_validate(prescription)
 
 # Get user's prescriptions

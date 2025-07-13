@@ -71,6 +71,9 @@ class Order(OrderBase):
     estimated_delivery_time: Optional[datetime] = None
     actual_delivery_time: Optional[datetime] = None
     
+    # Delivery proof
+    delivery_proof_url: Optional[str] = None
+    
     # Timestamps
     created_at: datetime
     updated_at: Optional[datetime] = None

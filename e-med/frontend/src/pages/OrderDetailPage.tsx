@@ -3,6 +3,8 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import { orderAPI } from '../services/api';
 import type { Order } from '../types';
 import { OrderStatus } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { useWebSocket } from '../contexts/WebSocketContext';
 
 const OrderDetailPage: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -13,6 +15,15 @@ const OrderDetailPage: React.FC = () => {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState(false);
+  const [tracking, setTracking] = useState<Record<string, any> | null>(null); // Replace 'any' with Record<string, any> for now
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofError, setProofError] = useState<string | null>(null);
+  const [proofSuccess, setProofSuccess] = useState<string | null>(null);
+
+  const { user } = useAuth();
+  const { lastMessage } = useWebSocket();
 
   // Get order data from navigation state or fetch from API
   useEffect(() => {
@@ -22,8 +33,8 @@ const OrderDetailPage: React.FC = () => {
         setLoading(true);
         const orderData = await orderAPI.getOrder(parseInt(orderId));
         setOrder(orderData);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load order details');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load order details');
       } finally {
         setLoading(false);
       }
@@ -52,6 +63,57 @@ const OrderDetailPage: React.FC = () => {
     }
   }, [orderId, location.state]);
 
+  // Fetch tracking info
+  const fetchTracking = async () => {
+    if (!orderId) return;
+    setTrackingLoading(true);
+    try {
+      const data = await orderAPI.trackOrder(parseInt(orderId));
+      setTracking(data);
+    } catch (err: unknown) {
+      // ignore for now
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+  useEffect(() => { fetchTracking(); }, [orderId]);
+  // Listen for WebSocket order/delivery updates
+  useEffect(() => {
+    if (!lastMessage) return;
+    if (
+      typeof lastMessage === 'object' &&
+      lastMessage !== null &&
+      'type' in lastMessage &&
+      (lastMessage as any).type === 'order_update' || (lastMessage as any).type === 'delivery_update'
+    ) {
+      fetchOrder();
+      fetchTracking();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMessage]);
+  // Delivery proof upload handler
+  const handleProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) setProofFile(e.target.files[0]);
+  };
+  const handleProofUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!proofFile || !order) return;
+    setProofUploading(true);
+    setProofError(null);
+    setProofSuccess(null);
+    try {
+      await orderAPI.uploadDeliveryProof(order.id, proofFile);
+      setProofSuccess('Delivery proof uploaded!');
+      setProofFile(null);
+      fetchOrder();
+      fetchTracking();
+    } catch (err: unknown) {
+      setProofError(err instanceof Error ? err.message : 'Failed to upload proof');
+    } finally {
+      setProofUploading(false);
+    }
+  };
+
   const handleCancelOrder = async () => {
     if (!order) return;
     setCancelLoading(true);
@@ -61,8 +123,8 @@ const OrderDetailPage: React.FC = () => {
       await orderAPI.cancelOrder(order.id);
       setCancelSuccess(true);
       setOrder({ ...order, status: OrderStatus.CANCELLED });
-    } catch (err: any) {
-      setCancelError(err.message || 'Failed to cancel order');
+    } catch (err: unknown) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
       setCancelLoading(false);
     }
@@ -239,6 +301,51 @@ const OrderDetailPage: React.FC = () => {
                   </div>
                 )}
               </div>
+            </div>
+            {/* Delivery Proof Section */}
+            {order.delivery_proof_url && (
+              <div className="bg-white rounded-xl shadow-sm border border-green-200 p-6 mt-6">
+                <h2 className="text-lg font-semibold text-green-700 mb-2">Delivery Proof</h2>
+                {order.delivery_proof_url.match(/\.(jpg|jpeg|png|gif)$/i) ? (
+                  <img src={order.delivery_proof_url} alt="Delivery Proof" className="max-h-64 rounded shadow mb-2" />
+                ) : (
+                  <a href={order.delivery_proof_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View Proof</a>
+                )}
+              </div>
+            )}
+            {/* Delivery Partner/Admin Proof Upload */}
+            {user && (user.role === 'delivery_partner' || user.role === 'pharmacy_admin' || user.role === 'system_admin') && order.status === OrderStatus.OUT_FOR_DELIVERY && !order.delivery_proof_url && (
+              <div className="bg-white rounded-xl shadow-sm border border-blue-200 p-6 mt-6">
+                <h2 className="text-lg font-semibold text-blue-700 mb-2">Upload Delivery Proof</h2>
+                <form onSubmit={handleProofUpload} className="flex flex-col gap-4">
+                  <input type="file" accept="image/*,.pdf" onChange={handleProofChange} />
+                  {proofError && <div className="text-red-600 text-sm">{proofError}</div>}
+                  {proofSuccess && <div className="text-green-600 text-sm">{proofSuccess}</div>}
+                  <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50" disabled={proofUploading || !proofFile}>{proofUploading ? 'Uploading...' : 'Upload Proof'}</button>
+                </form>
+              </div>
+            )}
+            {/* Order Tracking Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-purple-200 p-6 mt-6">
+              <h2 className="text-lg font-semibold text-purple-700 mb-2">Order Tracking</h2>
+              {trackingLoading ? (
+                <div>Loading tracking info...</div>
+              ) : tracking ? (
+                <div className="space-y-2">
+                  <div>Status: <span className="font-semibold">{tracking.status.replace('_', ' ')}</span></div>
+                  <div>Created: {new Date(tracking.created_at).toLocaleString()}</div>
+                  {tracking.confirmed_at && <div>Confirmed: {new Date(tracking.confirmed_at).toLocaleString()}</div>}
+                  {tracking.preparing_at && <div>Preparing: {new Date(tracking.preparing_at).toLocaleString()}</div>}
+                  {tracking.out_for_delivery_at && <div>Out for Delivery: {new Date(tracking.out_for_delivery_at).toLocaleString()}</div>}
+                  {tracking.delivered_at && <div>Delivered: {new Date(tracking.delivered_at).toLocaleString()}</div>}
+                  {tracking.delivery_partner_id && <div>Delivery Partner ID: {tracking.delivery_partner_id}</div>}
+                  {tracking.delivery_proof_url && (
+                    <div>Proof: <a href={tracking.delivery_proof_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a></div>
+                  )}
+                </div>
+              ) : (
+                <div>No tracking info available.</div>
+              )}
             </div>
           </div>
 

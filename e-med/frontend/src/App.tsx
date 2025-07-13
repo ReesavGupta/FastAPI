@@ -1,8 +1,7 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
+import { AuthProvider } from './contexts/AuthContext';
 import Navigation from './components/ui/Navigation';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -12,7 +11,10 @@ import PrescriptionsPage from './pages/PrescriptionsPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminOrdersPage from './pages/AdminOrdersPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import OrderNotificationListener from './components/OrderNotificationListener';
 import './App.css';
 
 function App() {
@@ -20,6 +22,7 @@ function App() {
     <AuthProvider>
       <CartProvider>
         <WebSocketProvider>
+          <OrderNotificationListener />
           <Router>
             <div className="min-h-screen bg-gray-50">
               <Navigation />
@@ -72,6 +75,22 @@ function App() {
                     element={
                       <ProtectedRoute>
                         <CheckoutPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin" 
+                    element={
+                      <ProtectedRoute requiredRole="pharmacy_admin">
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/admin/orders" 
+                    element={
+                      <ProtectedRoute requiredRole="pharmacy_admin">
+                        <AdminOrdersPage />
                       </ProtectedRoute>
                     } 
                   />

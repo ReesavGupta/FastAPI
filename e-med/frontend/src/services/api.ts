@@ -167,13 +167,31 @@ export const orderAPI = {
     const response: AxiosResponse<{ message: string }> = await api.delete(`/orders/${id}`);
     return response.data;
   },
+
+  // Upload delivery proof
+  uploadDeliveryProof: async (orderId: number, file: File): Promise<{ message: string; proof_url: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response: AxiosResponse<{ message: string; proof_url: string }> = await api.post(`/orders/${orderId}/delivery-proof`, formData, {
+      headers: { 'Content-Type': undefined },
+    });
+    return response.data;
+  },
+
+  // Track order
+  trackOrder: async (orderId: number): Promise<Record<string, unknown>> => {
+    const response: AxiosResponse<Record<string, unknown>> = await api.get(`/orders/${orderId}/track`);
+    return response.data;
+  },
 };
 
 // Prescription API
 export const prescriptionAPI = {
   // Upload prescription
   uploadPrescription: async (formData: FormData): Promise<Prescription> => {
-    const response: AxiosResponse<Prescription> = await api.post('/prescriptions/upload', formData);
+    const response: AxiosResponse<Prescription> = await api.post('/prescriptions/upload', formData, {
+      headers: { 'Content-Type': undefined }, // Let browser set correct boundary
+    });
     return response.data;
   },
 
@@ -200,6 +218,25 @@ export const prescriptionAPI = {
     offset?: number;
   }): Promise<Prescription[]> => {
     const response: AxiosResponse<Prescription[]> = await api.get('/prescriptions/user/me', { params });
+    return response.data;
+  },
+
+  // Get pending prescriptions (Admin only)
+  getPendingPrescriptions: async (params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<Prescription[]> => {
+    const response: AxiosResponse<Prescription[]> = await api.get('/prescriptions/admin/pending', { params });
+    return response.data;
+  },
+
+  // Verify prescription (Admin only)
+  verifyPrescription: async (prescriptionId: number, verificationData: {
+    status: 'verified' | 'rejected';
+    verification_notes?: string;
+    extracted_medicines?: string;
+  }): Promise<Prescription> => {
+    const response: AxiosResponse<Prescription> = await api.post(`/prescriptions/${prescriptionId}/verify`, verificationData);
     return response.data;
   },
 };

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.database import get_db
@@ -14,6 +14,7 @@ from app.schemas.order import (
 from app.services.notification_service import notification_service
 import uuid
 from datetime import datetime, timedelta
+from app.services.cloudinary_service import cloudinary_service
 
 router = APIRouter()
 
@@ -340,3 +341,83 @@ async def get_pending_orders(
     ).offset(offset).limit(limit).all()
     
     return [OrderSchema.model_validate(o) for o in orders] 
+
+@router.get("/{order_id}/track")
+async def track_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get real-time tracking info for an order and send a WebSocket notification to the user"""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    # Only allow user, assigned delivery partner, or admin to track
+    if (
+        current_user.role == UserRole.CUSTOMER and order.user_id != current_user.id
+    ):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Compose tracking info
+    tracking_info = {
+        "order_id": order.id,
+        "status": order.status.value,
+        "created_at": order.created_at,
+        "confirmed_at": order.updated_at if order.status != OrderStatus.PENDING else None,
+        "preparing_at": order.updated_at if order.status == OrderStatus.PREPARING else None,
+        "out_for_delivery_at": order.updated_at if order.status == OrderStatus.OUT_FOR_DELIVERY else None,
+        "delivered_at": order.actual_delivery_time,
+        "delivery_partner_id": order.delivery_partner_id,
+        "delivery_proof_url": order.delivery_proof_url,
+        # Add delivery partner location if available (extend as needed)
+    }
+    # Send real-time tracking update to user
+    try:
+        await notification_service.send_delivery_update(
+            user_id=order.user_id,
+            order_id=order.id,
+            delivery_status=order.status.value,
+            location=None  # Extend with location if available
+        )
+    except Exception as e:
+        print(f"Failed to send tracking notification: {e}")
+    return tracking_info
+
+@router.post("/{order_id}/delivery-proof")
+async def upload_delivery_proof(
+    order_id: int,
+    file: UploadFile = File(...),
+    notes: str = '',
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload delivery confirmation (photo, signature, etc.) and mark order as delivered, with real-time notification"""
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    # Only allow assigned delivery partner or admin
+    if not (
+        (current_user.role == UserRole.DELIVERY_PARTNER and order.delivery_partner_id == current_user.id)
+        or current_user.role in [UserRole.PHARMACY_ADMIN, UserRole.SYSTEM_ADMIN]
+    ):
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    # Upload file to Cloudinary
+    file_content = await file.read()
+    upload_result = await cloudinary_service.upload_prescription(file_content, file.filename, current_user.id)
+    # Store proof URL and notes (extend Order model as needed)
+    order.delivery_proof_url = upload_result["url"]
+    # If you want to store notes, add a delivery_proof_notes field to the model and schema
+    order.status = OrderStatus.DELIVERED.value
+    order.actual_delivery_time = datetime.utcnow()
+    db.commit()
+    db.refresh(order)
+    # Send real-time notification to user
+    try:
+        await notification_service.send_order_status_update(
+            user_id=order.user_id,
+            order_id=order.id,
+            status=order.status,
+            details={"proof_url": upload_result["url"]}
+        )
+    except Exception as e:
+        print(f"Failed to send delivery proof notification: {e}")
+    return {"message": "Delivery proof uploaded and order marked as delivered", "proof_url": upload_result["url"]} 
